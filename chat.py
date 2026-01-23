@@ -1,10 +1,6 @@
 from ctransformers import AutoModelForCausalLM
 import chainlit as cl
 
-llm = AutoModelForCausalLM.from_pretrained(
-    "zoltanctoth/orca_mini_3B-GGUF", model_file="orca-mini-3b.q4_0.gguf"
-)
-
 
 def get_prompt(instruction: str, history: list[str] | None = None) -> str:
     system = "You are an AI assistant that follows instruction extremely well. Help as much as you can. Give short answers."
@@ -18,8 +14,22 @@ def get_prompt(instruction: str, history: list[str] | None = None) -> str:
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    response = f"Hello, you just sent: {message.content}!"
-    await cl.Message(response).send()
+    msg = cl.Message(content="")
+    await msg.send()
+
+    prompt = get_prompt(message.content)
+    for word in llm(prompt, stream=True):
+        await msg.stream_token(word)
+    await msg.update()
+
+
+@cl.on_chat_start
+def on_chat_start():
+    global llm
+    llm = AutoModelForCausalLM.from_pretrained(
+        "zoltanctoth/orca_mini_3B-GGUF", model_file="orca-mini-3b.q4_0.gguf"
+    )
+
 
 """
 history = []
