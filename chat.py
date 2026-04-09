@@ -16,28 +16,48 @@ async def on_message(message: cl.Message):
     message_history = cl.user_session.get("message_history")
     msg = cl.Message(content="")
     await msg.send()
+    global active_model
+    if "use llama2" in message.content:
+        active_model = "llama"
+        await cl.Message(content="Model changed to Llama").send()
+        return
+
+    if "use orca" in message.content:
+        active_model = "orca"
+        await cl.Message(content="Model changed to Orca").send()
+        return
 
     if "forget everything" in message.content:
         message_history.clear()
-        info = cl.Message(content="Uh oh, I've just forgotten our conversation history")
-        await info.send()
+        await cl.Message(content="Uh oh, I've just forgotten our conversation history").send()
+        return
+
+    prompt = get_prompt(message.content, message_history)
+    if active_model == "llama":
+        llm = llama_llm
     else:
-        prompt = get_prompt(message.content, message_history)
-        response = ""
-        for word in llm(prompt, stream=True):
-            await msg.stream_token(word)
-            response += word
-        await msg.update()
-        message_history.append(response)
+        llm = orca_llm
+
+    response = ""
+    for word in llm(prompt, stream=True):
+        await msg.stream_token(word)
+        response += word
+    await msg.update()
+    message_history.append(response)
 
 
 @cl.on_chat_start
 def on_chat_start():
     cl.user_session.set("message_history", [])
-    global llm
-    llm = AutoModelForCausalLM.from_pretrained(
+    global orca_llm, llama_llm, active_model
+    orca_llm = AutoModelForCausalLM.from_pretrained(
         "zoltanctoth/orca_mini_3B-GGUF", model_file="orca-mini-3b.q4_0.gguf"
     )
+
+    llama_llm = AutoModelForCausalLM.from_pretrained(
+        "TheBloke/Llama-2-7b-Chat-GGUF", model_file="llama-2-7b-chat.Q2_K.gguf"
+    )
+    active_model = "orca"
 
 
 """
