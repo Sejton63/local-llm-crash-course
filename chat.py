@@ -17,13 +17,18 @@ async def on_message(message: cl.Message):
     msg = cl.Message(content="")
     await msg.send()
 
-    prompt = get_prompt(message.content, message_history)
-    response = ""
-    for word in llm(prompt, stream=True):
-        await msg.stream_token(word)
-        response += word
-    await msg.update()
-    message_history.append(response)
+    if "forget everything" in message.content:
+        message_history.clear()
+        info = cl.Message(content="Uh oh, I've just forgotten our conversation history")
+        await info.send()
+    else:
+        prompt = get_prompt(message.content, message_history)
+        response = ""
+        for word in llm(prompt, stream=True):
+            await msg.stream_token(word)
+            response += word
+        await msg.update()
+        message_history.append(response)
 
 
 @cl.on_chat_start
